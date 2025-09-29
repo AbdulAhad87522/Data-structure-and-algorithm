@@ -1,8 +1,36 @@
-#problem 3
 
 import random
 import time
 
+#problem 2
+
+def insertion(arr):
+    n= len(arr)
+    for i in range(1 ,  n):
+        key = arr[i]
+        j = i-1
+        while(j >= 0 and key < arr[j]):
+            arr[j + 1] = arr[j]
+        j = j - 1
+        arr[j+1] = key
+    
+    return arr
+
+
+arr = [random.randint(0, 1000) for i in range(30000)]
+start_time = time.time()
+sorted_array = insertion(arr )
+
+f = open(file="insertionsort.txt" , mode="w")
+for i in sorted_array:
+    f.write(str(i) + "\n")
+end_time= time.time()
+
+run_time= end_time - start_time
+
+print(run_time)
+
+#problem 3
 
 # def merge(arr , st , mid , end):
 #     temp  = []
@@ -58,28 +86,50 @@ import time
 
 #problem 5
 
-def buublesort(arr , st , end):
-    for i in range(st , end - 1):
-        for j in range( 0 ,end - i - 1):
-            if(arr[j] > arr[j + 1]):
-                temp = arr[j]
-                arr[j] = arr[j + 1]
-                arr[j + 1] = temp
-    return arr
+# def buublesort(arr , st , end):
+#     n= end - st
+#     for i in range(n - 1):
+#         for j in range( st ,end - i - 1):
+#             if(arr[j] > arr[j + 1]):
+#                 temp = arr[j]
+#                 arr[j] = arr[j + 1]
+#                 arr[j + 1] = temp
+#     return arr
 
 
-arr = [random.randint(0, 1000) for i in range(30000)]
-start_time = time.time()
-sorted_array = buublesort(arr , 0 , len(arr))
+# arr = [random.randint(0, 1000) for i in range(30000)]
+# start_time = time.time()
+# sorted_array = buublesort(arr , 0 , len(arr))
 
-f = open(file="bubblesort.txt" , mode="w")
-for i in sorted_array:
-    f.write(str(sorted_array[i]) + "\n")
-end_time= time.time()
+# f = open(file="bubblesort.txt" , mode="w")
+# for i in sorted_array:
+#     f.write(str(i) + "\n")
+# end_time= time.time()
 
-run_time= end_time - start_time
+# run_time= end_time - start_time
 
-print(run_time)
+# print(run_time)
 
 #priblem 6
 
+# def selectionsort(arr):
+#     n = len(arr)
+#     for i in range(n-1):
+#         for j in range(i+1 , n):
+#             if(arr[j] < arr[i]):
+#                 arr[j] , arr[i] = arr[i] , arr[j]
+#     return arr
+
+# # arr = [random.randint(0, 1000) for i in range(30000)]
+# arr = [random.randint(0, 1000) for i in range(30000)]
+# start_time = time.time()
+# sorted_array = selectionsort(arr )
+
+# f = open(file="selectionsort.txt" , mode="w")
+# for i in sorted_array:
+#     f.write(str(i) + "\n")
+# end_time= time.time()
+
+# run_time= end_time - start_time
+
+# print(run_time)
