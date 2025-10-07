@@ -8,7 +8,7 @@ import pandas as pd
 # plt.bar(list1, list2,width = 1, color = ['red', 'green']) 
 # plt.show()
 
-# #1
+# # #1
 # # import matplotlib.pyplot as plt  
 # # import pandas as pd 
 
@@ -32,9 +32,9 @@ import pandas as pd
 # plt.tight_layout()
 # plt.show()
 
-# #3
-# # import matplotlib.pyplot as plt  
-# # import pandas as pd 
+# # #3
+# # # import matplotlib.pyplot as plt  
+# # # import pandas as pd 
 
 # # Load the data
 # df = pd.read_csv('dailyActivity_merged.csv')  
@@ -59,7 +59,7 @@ import pandas as pd
 # plt.show()
 
 
-# #4
+# # #4
 
 # # import matplotlib.pyplot as plt  
 # # import pandas as pd 
@@ -95,15 +95,21 @@ df['ActivityHour'] = pd.to_datetime(df['ActivityHour'])
 april_12 = pd.to_datetime('2016-04-12').date() in df['ActivityHour'].dt.date.values
 
 print(df['ActivityHour'].dt.date.unique())
-print("soes exite {april_12}")
+print("does exite {april_12}")
 
-filtered_df = df[df['ActivityHour'].dt.date == pd.to_datetime('2016-04-12').date]
+filtered_df = df[df['ActivityHour'].dt.date == pd.to_datetime('2016-04-12').date()]
+
 hours = filtered_df['ActivityHour'].dt.hour.values
 step_total = filtered_df['StepTotal'].values
-print("total hours ", hours)
-print("total steps" , step_total)
 
+# print(f"\n total {len(hours)} found")
+    
+# print("total hours ", hours)
+# print("total steps" , step_total)
 
+plt.pie(hours , labels = step_total , autopct='%1.0f%%')
+plt.title(' pie chart')
+plt.show()
 
 # import matplotlib.pyplot as plt
 
