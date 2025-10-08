@@ -19,17 +19,17 @@
 
 # 2
 
-# def addmatrice(a,b):
-#     if(len(a) != len(b) or len(a[0]) != len(b[0])):
-#         print("bothe the matrices should be of equal size")
-#         return
-#     ans = []
-#     for i in range(len(a)):
-#         row = []
-#         for j in range(len(a[i])):
-#             row.append(a[i][j] + b[i][j]) 
-#         ans.append(row)
-#     return ans
+def addmatrice(a,b):
+    if(len(a) != len(b) or len(a[0]) != len(b[0])):
+        print("bothe the matrices should be of equal size")
+        return
+    ans = []
+    for i in range(len(a)):
+        row = []
+        for j in range(len(a[i])):
+            row.append(a[i][j] + b[i][j]) 
+        ans.append(row)
+    return ans
 
 
 # a = [[1,2,3,4],
@@ -41,7 +41,9 @@
 #      [3,54,6,4],
 #      [7,6,5,4]]
 
-
+c = [[1,2,3,2],
+     [3,1,3,1],
+     [7,6,5,4]]
 # print(addmatrice(a, b))
 
 # 3
