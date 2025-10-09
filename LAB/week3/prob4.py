@@ -23,7 +23,7 @@
   
 # df = pd.DataFrame({'Product Name':products,'Price':prices,'Rating':ratings})   
 # df.to_csv('products.csv', index=False, encoding='utf-8')
-
+! pip install selenium 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
