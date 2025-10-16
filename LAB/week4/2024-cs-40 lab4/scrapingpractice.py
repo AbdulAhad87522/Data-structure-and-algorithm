@@ -22,11 +22,11 @@ suppliers_location =[]
 suppliers_name =[]
 driver = uc.Chrome()
 try:
-    for i in range(1,20):
-        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&categoryId=66010502&has4Tab=true&keywords=Tattoo+Ink&originKeywords=Tattoo+Ink&productId=60775230598&tab=all&&page={i}&spm=a2700.galleryofferlist.pagination.0"
+    for i in range(1,70):
+        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&has4Tab=true&keywords=laptop&originKeywords=laptop&tab=all&&page={i}&spm=undefined.pagination.0"
         # responce = requests.get(url)
         driver.get(url)
-        WebDriverWait(driver, 24).until(
+        WebDriverWait(driver, 25).until(
             EC.presence_of_element_located((By.CLASS_NAME, "fy26-product-card-content"))
         )
         # time.sleep(4)
@@ -90,7 +90,7 @@ try:
         })
         
         
-    df.to_csv("product.csv", index = "false", encoding="UTF-8")
+    df.to_csv("laptop.csv", index = "false", encoding="UTF-8")
     print(f"Total products scraped are {len(names)}")
 
 finally:
