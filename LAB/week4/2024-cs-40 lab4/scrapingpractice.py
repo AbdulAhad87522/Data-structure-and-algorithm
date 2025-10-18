@@ -1,5 +1,3 @@
-
-
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup as bs
 import pandas as pd
@@ -9,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+import os
 
 
 names = []
@@ -22,8 +21,8 @@ suppliers_location =[]
 suppliers_name =[]
 driver = uc.Chrome()
 try:
-    for i in range(1,70):
-        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=laptop&originKeywords=laptop&tab=all&&page={i}&spm=a2700.galleryofferlist.pagination.0"
+    for i in range(1,20):
+        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=shoes&originKeywords=shoes&tab=all&&page={i}&spm=undefined.pagination.0"
         # responce = requests.get(url)
         driver.get(url)
         WebDriverWait(driver, 25).until(
@@ -82,15 +81,20 @@ try:
         "Price" : prices,
         "Minimum Orders" : minimunorders,
         "Total Sold" : total_sold,
-        "Supplier Name" : suppliers_name,
+        "Supplier Name" : suppliers_name,   
         "Supplier's Experience" : suppliers,
         "Supplier Country" : suppliers_type,
         "Supplier Rating" : suppliers_location
         # "Years" : olds
         })
         
-        
-    df.to_csv("laptop1-70.csv", index = "false", encoding="UTF-8")
+    df.to_csv("shoes1-20.csv", index = False, encoding="UTF-8")
+    # if os.path.exists("s-20.csv"):
+    #     print(f"CSV file created successfully! Total products scraped: {len(names)}")
+    #     print(f"File location: {os.path.abspath('s-20.csv')}")
+    # else:
+    #     print("CSV file was not created!")
+    
     print(f"Total products scraped are {len(names)}")
 
 finally:

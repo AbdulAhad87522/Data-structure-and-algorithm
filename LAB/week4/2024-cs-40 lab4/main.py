@@ -1,4 +1,3 @@
-
 import sys
 import os
 import time
@@ -53,10 +52,16 @@ class MainWindow(QMainWindow):
             
             # Load CSV file with error handling
             try:
-                self.df = pd.read_csv(file_path)
+                # Try different encodings
+                try:
+                    self.df = pd.read_csv(file_path, encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        self.df = pd.read_csv(file_path, encoding='latin-1')
+                    except:
+                        self.df = pd.read_csv(file_path, encoding='ISO-8859-1')
+                
                 print(f"CSV loaded successfully. Shape: {self.df.shape}")
-                print(f"Columns: {self.df.columns.tolist()}")
-                print(f"First few rows:\n{self.df.head()}")
             except pd.errors.EmptyDataError:
                 QMessageBox.critical(self, "Error", "The CSV file is empty!")
                 return
@@ -72,11 +77,8 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", "The CSV file contains no data!")
                 return
             
-            # Clean all columns based on their content
-            self.clean_all_columns()
-            
-            # Replace all NaN/NA values with 0
-            self.df = self.df.fillna(0)
+            # Clean price columns - Extract first number from formats like "US$ 30-90"
+            self.clean_price_columns()
             
             # Clear the table widget completely
             self.ui.tableWidget.setRowCount(0)
@@ -141,136 +143,6 @@ class MainWindow(QMainWindow):
             import traceback
             traceback.print_exc()
 
-    def clean_all_columns(self):
-        """
-        Clean all columns in the dataframe based on their names and content
-        """
-        print("\n=== Starting Column Cleaning ===")
-        
-        for column in self.df.columns:
-            column_lower = str(column).lower()
-            print(f"\nProcessing column: {column}")
-            
-            # Check if this is a supplier name column - skip cleaning
-            if any(keyword in column_lower for keyword in ['supplier', 'name', 'company', 'vendor']):
-                # Check if it looks like numeric data or actual names
-                sample = self.df[column].dropna().iloc[0] if not self.df[column].dropna().empty else None
-                if sample and isinstance(sample, str) and not re.search(r'\d', sample):
-                    print(f"  → Skipping (Supplier Name column)")
-                    continue
-            
-            # Get a sample value to determine what kind of cleaning is needed
-            sample_value = self.df[column].dropna().iloc[0] if not self.df[column].dropna().empty else None
-            
-            if sample_value is None:
-                continue
-            
-            needs_cleaning = False
-            
-            # Check if it's already numeric
-            if isinstance(sample_value, (int, float)):
-                print(f"  → Already numeric, no cleaning needed")
-                continue
-            
-            # Convert to string for pattern matching
-            sample_str = str(sample_value)
-            print(f"  → Sample value: {sample_str}")
-            
-            # Detect patterns that need cleaning
-            patterns_found = []
-            
-            # Price pattern: US$ 30-90, $50, £45.99
-            if re.search(r'[$£€¥₹]|US\$', sample_str):
-                patterns_found.append("price/currency")
-                needs_cleaning = True
-            
-            # Minimum order pattern: Min. order: 3 pieces
-            if re.search(r'min\.?\s*order', sample_str, re.IGNORECASE):
-                patterns_found.append("minimum order")
-                needs_cleaning = True
-            
-            # Sold pattern: 122 sold
-            if re.search(r'\d+\s*sold', sample_str, re.IGNORECASE):
-                patterns_found.append("sold")
-                needs_cleaning = True
-            
-            # Experience/time pattern: 9 yrs, 5 years, 3 months
-            if re.search(r'\d+\s*(yr|year|month|day|hour)', sample_str, re.IGNORECASE):
-                patterns_found.append("time/experience")
-                needs_cleaning = True
-            
-            # Measurement pattern: 10 kg, 5 lbs, 180 cm
-            if re.search(r'\d+\s*(kg|lb|cm|inch|m\b)', sample_str, re.IGNORECASE):
-                patterns_found.append("measurement")
-                needs_cleaning = True
-            
-            # Pieces pattern: 3 pieces, 100 pcs
-            if re.search(r'\d+\s*(piece|pcs|pc)', sample_str, re.IGNORECASE):
-                patterns_found.append("pieces")
-                needs_cleaning = True
-            
-            if needs_cleaning:
-                print(f"  → Patterns detected: {', '.join(patterns_found)}")
-                print(f"  → Applying cleaning...")
-                self.df[column] = self.df[column].apply(self.extract_number)
-                print(f"  → Cleaning complete")
-            else:
-                print(f"  → No cleaning needed")
-
-    def extract_number(self, value):
-        """
-        Extract numeric value from various formats:
-        - "US$ 30-90" -> 30
-        - "$50.99" -> 50.99
-        - "Min. order: 3 pieces" -> 3
-        - "122 sold" -> 122
-        - "9 yrs" -> 9
-        - "5 years" -> 5
-        - "10 kg" -> 10
-        - "N/A" -> 0
-        """
-        # If already numeric, return as is
-        if pd.isna(value):
-            return 0
-        
-        if isinstance(value, (int, float)):
-            return value
-        
-        # Convert to string
-        value_str = str(value).strip()
-        
-        # Check for N/A or similar values
-        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '', 'NAN']:
-            return 0
-        
-        # Remove common prefixes and text
-        # Handle "Min. order: 3 pieces" format
-        value_str = re.sub(r'min\.?\s*order\s*:', '', value_str, flags=re.IGNORECASE)
-        
-        # Remove currency symbols
-        value_str = re.sub(r'US\$|[$£€¥₹]', '', value_str)
-        
-        # Remove text suffixes with word boundaries
-        value_str = re.sub(r'\b(yr|years?|months?|days?|hours?|mins?|minutes?|secs?|seconds?)\b', '', value_str, flags=re.IGNORECASE)
-        value_str = re.sub(r'\b(sold|pieces?|pcs?|pc)\b', '', value_str, flags=re.IGNORECASE)
-        value_str = re.sub(r'\b(kg|kgs?|lb|lbs?|pounds?|cm|meter|meters?|m|inch|inches)\b', '', value_str, flags=re.IGNORECASE)
-        
-        # Remove extra spaces and colons
-        value_str = re.sub(r'[:\s]+', ' ', value_str).strip()
-        
-        # Find all numbers (including decimals)
-        numbers = re.findall(r'\d+\.?\d*', value_str)
-        
-        if numbers:
-            # Return the first number as float
-            try:
-                return float(numbers[0])
-            except ValueError:
-                return 0
-        else:
-            # No number found
-            return 0
-
     def update_table_display(self):
         """Refresh the table widget with current DataFrame data"""
         # Disable sorting temporarily while updating
@@ -308,7 +180,174 @@ class MainWindow(QMainWindow):
         
         # Re-enable sorting
         self.ui.tableWidget.setSortingEnabled(True)
+
+    def clean_price_columns(self):
+        """
+        Clean specific columns based on their exact names
+        """
+        print("\n=== Starting Column-Specific Cleaning ===")
         
+        for column in self.df.columns:
+            print(f"\nProcessing column: {column}")
+            
+            # Apply cleaning based on exact column name
+            if column == "Price":
+                print(f"  → Cleaning Price column (removing US$ and currency symbols)")
+                self.df[column] = self.df[column].apply(lambda x: self.extract_number_price(x))
+            
+            elif column == "Minimum Orders":
+                print(f"  → Cleaning Minimum Orders column (removing 'Min. order:')")
+                self.df[column] = self.df[column].apply(lambda x: self.extract_number_min_orders(x))
+            
+            elif column == "Total Sold":
+                print(f"  → Cleaning Total Sold column (removing 'sold' from end)")
+                self.df[column] = self.df[column].apply(lambda x: self.extract_number_sold(x))
+            
+            elif column == "Supplier's Experience":
+                print(f"  → Cleaning Supplier's Experience column (removing 'yr' from end)")
+                self.df[column] = self.df[column].apply(lambda x: self.extract_number_experience(x))
+            
+            else:
+                print(f"  → No cleaning needed (not a target column)")
+
+
+    def extract_number_price(self, value):
+        """
+        Extract number from Price column - removes US$ and other currency symbols
+        Examples: "US$ 30-90" -> 30, "$50.99" -> 50.99
+        """
+        # If already numeric, return as is
+        if pd.isna(value):
+            return 0
+        
+        if isinstance(value, (int, float)):
+            return value
+        
+        # Convert to string
+        value_str = str(value).strip()
+        
+        # Check for N/A or similar values
+        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '']:
+            return 0
+        
+        # Remove currency symbols: US$, $, £, €, ¥, ₹
+        value_str = re.sub(r'US\$|[$£€¥₹]', '', value_str)
+        
+        # Remove spaces
+        value_str = re.sub(r'\s+', '', value_str)
+        
+        # Find all numbers (including decimals)
+        numbers = re.findall(r'\d+\.?\d*', value_str)
+        
+        if numbers:
+            try:
+                return float(numbers[0])
+            except ValueError:
+                return 0
+        else:
+            return 0
+
+
+    def extract_number_min_orders(self, value):
+        """
+        Extract number from Minimum Orders column - removes "Min. order:" from start
+        Examples: "Min. order: 3 pieces" -> 3
+        """
+        # If already numeric, return as is
+        if pd.isna(value):
+            return 0
+        
+        if isinstance(value, (int, float)):
+            return value
+        
+        # Convert to string
+        value_str = str(value).strip()
+        
+        # Check for N/A or similar values
+        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '']:
+            return 0
+        
+        # Remove "Min. order:" from the beginning (case-insensitive)
+        value_str = re.sub(r'^min\.?\s*order\s*:\s*', '', value_str, flags=re.IGNORECASE)
+        
+        # Find all numbers (including decimals)
+        numbers = re.findall(r'\d+\.?\d*', value_str)
+        
+        if numbers:
+            try:
+                return float(numbers[0])
+            except ValueError:
+                return 0
+        else:
+            return 0
+
+
+    def extract_number_sold(self, value):
+        """
+        Extract number from Total Sold column - removes "sold" from end
+        Examples: "122 sold" -> 122
+        """
+        # If already numeric, return as is
+        if pd.isna(value):
+            return 0
+        
+        if isinstance(value, (int, float)):
+            return value
+        
+        # Convert to string
+        value_str = str(value).strip()
+        
+        # Check for N/A or similar values
+        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '']:
+            return 0
+        
+        # Remove "sold" from the end (case-insensitive)
+        value_str = re.sub(r'\s*sold\s*$', '', value_str, flags=re.IGNORECASE)
+        
+        # Find all numbers (including decimals)
+        numbers = re.findall(r'\d+\.?\d*', value_str)
+        
+        if numbers:
+            try:
+                return float(numbers[0])
+            except ValueError:
+                return 0
+        else:
+            return 0
+
+
+    def extract_number_experience(self, value):
+        """
+        Extract number from Supplier's Experience column - removes "yr" or "yrs" from end
+        Examples: "9 yrs" -> 9, "5 yr" -> 5
+        """
+        # If already numeric, return as is
+        if pd.isna(value):
+            return 0
+        
+        if isinstance(value, (int, float)):
+            return value
+        
+        # Convert to string
+        value_str = str(value).strip()
+        
+        # Check for N/A or similar values
+        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '']:
+            return 0
+        
+        # Remove "yr" or "yrs" from the end (case-insensitive)
+        value_str = re.sub(r'\s*yrs?\s*$', '', value_str, flags=re.IGNORECASE)
+        
+        # Find all numbers (including decimals)
+        numbers = re.findall(r'\d+\.?\d*', value_str)
+        
+        if numbers:
+            try:
+                return float(numbers[0])
+            except ValueError:
+                return 0
+        else:
+            return 0
     def sort_data(self, algorithm):
         if self.df is None:
             QMessageBox.warning(self, "Warning", "Please load CSV data first!")
@@ -357,8 +396,8 @@ class MainWindow(QMainWindow):
                         return
                 else:
                     # For other algorithms, use numeric values (can be float)
-                    # Replace NaN with 0
-                    column_data = numeric_data.fillna(0).tolist()
+                    # Replace NaN with a very large negative number so they sort to the end
+                    column_data = numeric_data.fillna(float('-inf')).tolist()
             else:
                 # No valid numeric values found
                 is_numeric = False
@@ -423,8 +462,8 @@ class MainWindow(QMainWindow):
         
         # Show success message
         QMessageBox.information(self, "Success", f"{algorithm} completed in {total:.6f} seconds!")
-
-
+        
+        # Show success message
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -576,18 +615,26 @@ class Ui_MainWindow(object):
         self.bucketsort.setToolTip(_translate("MainWindow", "Bucket Sort - O(n+k)"))
 
 
-# Sorting Algorithms
+# Sorting Algorithms - Add your implementations here
 def bubblesort(arr):
-    """Bubble Sort - Returns indices in ascending order"""
+    """
+    Bubble Sort - Returns indices in descending order (largest to smallest)
+    """
+    # Create indexed array: [(value, original_index), ...]
     indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
     n = len(indexed_arr)
     
+    # Bubble sort on indexed array
     for i in range(n - 1):
         for j in range(n - i - 1):
-            if indexed_arr[j][0] > indexed_arr[j + 1][0]:
+            # Compare by value (first element of tuple)
+            if indexed_arr[j][0] > indexed_arr[j + 1][0]:  # Descending order
+                # Swap
                 indexed_arr[j], indexed_arr[j + 1] = indexed_arr[j + 1], indexed_arr[j]
     
+    # Return only the indices in sorted order
     return [idx for value, idx in indexed_arr]
+
 
 
 def merge(indexed_arr, st, mid, end):
@@ -595,8 +642,9 @@ def merge(indexed_arr, st, mid, end):
     i = st 
     j = mid + 1
     
+    # Compare in descending order (larger values first)
     while i <= mid and j <= end:
-        if indexed_arr[i][0] <= indexed_arr[j][0]:
+        if indexed_arr[i][0] <= indexed_arr[j][0]:  # >= for descending
             temp.append(indexed_arr[i])
             i = i + 1
         else:
@@ -618,57 +666,60 @@ def merge(indexed_arr, st, mid, end):
 def mergesort_helper(indexed_arr, st, end):
     if st < end:
         mid = st + (end - st) // 2
+    
         mergesort_helper(indexed_arr, st, mid)
         mergesort_helper(indexed_arr, mid + 1, end)
+        
         merge(indexed_arr, st, mid, end)
 
 
 def mergesort(arr):
-    """Merge Sort - Returns indices in ascending order"""
+    """
+    Merge Sort - Returns indices in descending order (largest to smallest)
+    """
     indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
+    
     mergesort_helper(indexed_arr, 0, len(indexed_arr) - 1)
+    
     return [idx for value, idx in indexed_arr]
 
-
 def insertion(arr):
-    """Insertion Sort - Returns indices in ascending order"""
+    """
+    Insertion Sort - Returns indices in descending order (largest to smallest)
+    """
     indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
+
     n = len(indexed_arr)
-    
     for i in range(1, n):
         key = indexed_arr[i]
         j = i - 1
-        while j >= 0 and key[0] < indexed_arr[j][0]:
+        while j >= 0 and key[0] < indexed_arr[j][0]:  # Use > for descending
             indexed_arr[j + 1] = indexed_arr[j]
-            j = j - 1
+            j = j - 1  # ← Must be indented inside the while loop
         indexed_arr[j + 1] = key
     
     return [idx for value, idx in indexed_arr]
 
-
 def selectionsort(arr):
-    """Selection Sort - Returns indices in ascending order"""
-    indexed_array = [(value, idx) for idx, value in enumerate(arr)]
-    n = len(indexed_array)
-    
-    for i in range(n - 1):
+    indexed_arrray = [(value,idx) for idx , value in enumerate(arr)]
+    n = len(indexed_arrray)
+    for i in range(n-1):
         min_idx = i
-        for j in range(i + 1, n):
-            if indexed_array[j][0] < indexed_array[min_idx][0]:
+        for j in range(i+1 , n):
+            if(indexed_arrray[j][0] < indexed_arrray[min_idx][0]):
                 min_idx = j
         if min_idx != i:
-            indexed_array[min_idx], indexed_array[i] = indexed_array[i], indexed_array[min_idx]
-    
-    return [idx for value, idx in indexed_array]
+            indexed_arrray[min_idx] , indexed_arrray[i] = indexed_arrray[i] , indexed_arrray[min_idx]
+    return [idx for value, idx in indexed_arrray]
 
 
 def partition(indexed_array, q, r):
     """Partition for ascending order"""
-    x = indexed_array[r][0]
+    x = indexed_array[r][0]  # Pivot value
     i = q - 1
     
     for j in range(q, r):
-        if indexed_array[j][0] <= x:
+        if indexed_array[j][0] <= x:  # <= for ascending order
             i = i + 1
             indexed_array[i], indexed_array[j] = indexed_array[j], indexed_array[i]
     
@@ -684,7 +735,9 @@ def quicksort_helper(indexed_array, q, r):
 
 
 def quicksort(arr):
-    """Quick Sort - Returns indices in ascending order"""
+    """
+    Quick Sort - Returns indices in ascending order (smallest to largest)
+    """
     indexed_array = [(value, idx) for idx, value in enumerate(arr)]
     n = len(indexed_array)
     
@@ -695,15 +748,20 @@ def quicksort(arr):
 
 
 def countingsort(arr):
-    """Counting Sort - Returns indices in ascending order"""
+    """
+    Counting Sort - Returns indices in ascending order (smallest to largest)
+    Works with integers only
+    """
     if len(arr) == 0:
         return []
     
+    # Ensure all values are integers
     try:
         indexed_array = [(int(value), idx) for idx, value in enumerate(arr)]
     except (ValueError, TypeError) as e:
         raise ValueError(f"Counting Sort requires integer values: {e}")
     
+    # Find min and max values
     min_val = min(val for val, _ in indexed_array)
     max_val = max(val for val, _ in indexed_array)
     
@@ -711,12 +769,15 @@ def countingsort(arr):
     count = [0] * range_size
     output = [None] * len(indexed_array)
     
+    # Count occurrences
     for value, idx in indexed_array:
         count[value - min_val] += 1
     
+    # Cumulative count (for ascending order, iterate forwards)
     for i in range(1, range_size):
         count[i] += count[i - 1]
     
+    # Build output array (iterate backwards to maintain stability)
     for i in range(len(indexed_array) - 1, -1, -1):
         value, idx = indexed_array[i]
         output[count[value - min_val] - 1] = (value, idx)
@@ -724,4 +785,124 @@ def countingsort(arr):
     
     return [idx for value, idx in output]
 
+def counting_sort_by_digit(indexed_array, exp):
+    """Helper function for radix sort - sorts by a specific digit"""
+    n = len(indexed_array)
+    output = [None] * n
+    count = [0] * 10
+    
+    # Count occurrences of each digit
+    for i in range(n):
+        digit = (indexed_array[i][0] // exp) % 10
+        count[digit] += 1
+    
+    # Cumulative count
+    for i in range(1, 10):
+        count[i] += count[i - 1]
+    
+    # Build output array (iterate backwards for stability)
+    for i in range(n - 1, -1, -1):
+        digit = (indexed_array[i][0] // exp) % 10
+        output[count[digit] - 1] = indexed_array[i]
+        count[digit] -= 1
+    
+    # Copy back to original array
+    for i in range(n):
+        indexed_array[i] = output[i]
 
+
+def radixsort(arr):
+    """
+    Radix Sort - Returns indices in ascending order (smallest to largest)
+    Only works with non-negative integers
+    """
+    if len(arr) == 0:
+        return []
+    
+    # Check for negative values
+    if any(x < 0 for x in arr):
+        raise ValueError("Radix sort only supports non-negative integers")
+    
+    indexed_array = [(value, idx) for idx, value in enumerate(arr)]
+    max_val = max(val for val, _ in indexed_array)
+    
+    # Sort by each digit, starting from least significant
+    exp = 1
+    while (max_val // exp) > 0:
+        counting_sort_by_digit(indexed_array, exp)
+        exp *= 10
+    
+    return [idx for value, idx in indexed_array]
+
+
+def insertionSort(indexed_array):
+    """Helper insertion sort for buckets (ascending)"""
+    for i in range(1, len(indexed_array)):
+        key = indexed_array[i]
+        j = i - 1
+        while j >= 0 and indexed_array[j][0] > key[0]:
+            indexed_array[j + 1] = indexed_array[j]
+            j -= 1
+        indexed_array[j + 1] = key
+
+
+def bucketsort(arr):
+    """
+    Bucket Sort - Returns indices in ascending order (smallest to largest)
+    """
+    n = len(arr)
+    if n == 0:
+        return []
+    
+    indexed_array = [(value, idx) for idx, value in enumerate(arr)]
+    
+    min_val = min(val for val, _ in indexed_array)
+    max_val = max(val for val, _ in indexed_array)
+    
+    # If all values are the same, return as-is
+    if min_val == max_val:
+        return [idx for _, idx in indexed_array]
+    
+    # Create buckets
+    buckets = [[] for _ in range(n)]
+    range_val = max_val - min_val
+    
+    # Distribute elements into buckets
+    for value, idx in indexed_array:
+        bucket_idx = int((value - min_val) / range_val * (n - 1))
+        buckets[bucket_idx].append((value, idx))
+    
+    # Sort each bucket
+    for bucket in buckets:
+        insertionSort(bucket)
+    
+    # Collect from all buckets in order (ascending)
+    result = []
+    for bucket in buckets:
+        result.extend(bucket)
+    
+    return [idx for value, idx in result]
+
+# Add your other sorting algorithms here following the same pattern
+# def insertionsort(arr):
+#     # Your implementation
+#     pass
+
+# def selectionsort(arr):
+#     # Your implementation
+#     pass
+
+# ... etc
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    
+    # Set application properties
+    app.setApplicationName("Data Structure Project")
+    app.setApplicationVersion("1.0")
+    app.setOrganizationName("CS200")
+    
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
