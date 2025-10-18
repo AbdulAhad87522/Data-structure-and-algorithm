@@ -1,7 +1,9 @@
+
 import sys
 import os
 import time
 import pandas as pd
+import re
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableWidgetItem, 
                              QMessageBox, QVBoxLayout, QHBoxLayout, 
@@ -70,6 +72,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", "The CSV file contains no data!")
                 return
             
+            # Clean all columns based on their content
+            self.clean_all_columns()
+            
+            # Replace all NaN/NA values with 0
+            self.df = self.df.fillna(0)
+            
             # Clear the table widget completely
             self.ui.tableWidget.setRowCount(0)
             self.ui.tableWidget.setColumnCount(0)
@@ -96,7 +104,7 @@ class MainWindow(QMainWindow):
                         
                         # Handle different data types
                         if pd.isna(value):
-                            display_value = 'N/A'
+                            display_value = '0'
                         else:
                             display_value = str(value)
                         
@@ -133,6 +141,136 @@ class MainWindow(QMainWindow):
             import traceback
             traceback.print_exc()
 
+    def clean_all_columns(self):
+        """
+        Clean all columns in the dataframe based on their names and content
+        """
+        print("\n=== Starting Column Cleaning ===")
+        
+        for column in self.df.columns:
+            column_lower = str(column).lower()
+            print(f"\nProcessing column: {column}")
+            
+            # Check if this is a supplier name column - skip cleaning
+            if any(keyword in column_lower for keyword in ['supplier', 'name', 'company', 'vendor']):
+                # Check if it looks like numeric data or actual names
+                sample = self.df[column].dropna().iloc[0] if not self.df[column].dropna().empty else None
+                if sample and isinstance(sample, str) and not re.search(r'\d', sample):
+                    print(f"  → Skipping (Supplier Name column)")
+                    continue
+            
+            # Get a sample value to determine what kind of cleaning is needed
+            sample_value = self.df[column].dropna().iloc[0] if not self.df[column].dropna().empty else None
+            
+            if sample_value is None:
+                continue
+            
+            needs_cleaning = False
+            
+            # Check if it's already numeric
+            if isinstance(sample_value, (int, float)):
+                print(f"  → Already numeric, no cleaning needed")
+                continue
+            
+            # Convert to string for pattern matching
+            sample_str = str(sample_value)
+            print(f"  → Sample value: {sample_str}")
+            
+            # Detect patterns that need cleaning
+            patterns_found = []
+            
+            # Price pattern: US$ 30-90, $50, £45.99
+            if re.search(r'[$£€¥₹]|US\$', sample_str):
+                patterns_found.append("price/currency")
+                needs_cleaning = True
+            
+            # Minimum order pattern: Min. order: 3 pieces
+            if re.search(r'min\.?\s*order', sample_str, re.IGNORECASE):
+                patterns_found.append("minimum order")
+                needs_cleaning = True
+            
+            # Sold pattern: 122 sold
+            if re.search(r'\d+\s*sold', sample_str, re.IGNORECASE):
+                patterns_found.append("sold")
+                needs_cleaning = True
+            
+            # Experience/time pattern: 9 yrs, 5 years, 3 months
+            if re.search(r'\d+\s*(yr|year|month|day|hour)', sample_str, re.IGNORECASE):
+                patterns_found.append("time/experience")
+                needs_cleaning = True
+            
+            # Measurement pattern: 10 kg, 5 lbs, 180 cm
+            if re.search(r'\d+\s*(kg|lb|cm|inch|m\b)', sample_str, re.IGNORECASE):
+                patterns_found.append("measurement")
+                needs_cleaning = True
+            
+            # Pieces pattern: 3 pieces, 100 pcs
+            if re.search(r'\d+\s*(piece|pcs|pc)', sample_str, re.IGNORECASE):
+                patterns_found.append("pieces")
+                needs_cleaning = True
+            
+            if needs_cleaning:
+                print(f"  → Patterns detected: {', '.join(patterns_found)}")
+                print(f"  → Applying cleaning...")
+                self.df[column] = self.df[column].apply(self.extract_number)
+                print(f"  → Cleaning complete")
+            else:
+                print(f"  → No cleaning needed")
+
+    def extract_number(self, value):
+        """
+        Extract numeric value from various formats:
+        - "US$ 30-90" -> 30
+        - "$50.99" -> 50.99
+        - "Min. order: 3 pieces" -> 3
+        - "122 sold" -> 122
+        - "9 yrs" -> 9
+        - "5 years" -> 5
+        - "10 kg" -> 10
+        - "N/A" -> 0
+        """
+        # If already numeric, return as is
+        if pd.isna(value):
+            return 0
+        
+        if isinstance(value, (int, float)):
+            return value
+        
+        # Convert to string
+        value_str = str(value).strip()
+        
+        # Check for N/A or similar values
+        if value_str.upper() in ['N/A', 'NA', 'NULL', 'NONE', '-', '', 'NAN']:
+            return 0
+        
+        # Remove common prefixes and text
+        # Handle "Min. order: 3 pieces" format
+        value_str = re.sub(r'min\.?\s*order\s*:', '', value_str, flags=re.IGNORECASE)
+        
+        # Remove currency symbols
+        value_str = re.sub(r'US\$|[$£€¥₹]', '', value_str)
+        
+        # Remove text suffixes with word boundaries
+        value_str = re.sub(r'\b(yr|years?|months?|days?|hours?|mins?|minutes?|secs?|seconds?)\b', '', value_str, flags=re.IGNORECASE)
+        value_str = re.sub(r'\b(sold|pieces?|pcs?|pc)\b', '', value_str, flags=re.IGNORECASE)
+        value_str = re.sub(r'\b(kg|kgs?|lb|lbs?|pounds?|cm|meter|meters?|m|inch|inches)\b', '', value_str, flags=re.IGNORECASE)
+        
+        # Remove extra spaces and colons
+        value_str = re.sub(r'[:\s]+', ' ', value_str).strip()
+        
+        # Find all numbers (including decimals)
+        numbers = re.findall(r'\d+\.?\d*', value_str)
+        
+        if numbers:
+            # Return the first number as float
+            try:
+                return float(numbers[0])
+            except ValueError:
+                return 0
+        else:
+            # No number found
+            return 0
+
     def update_table_display(self):
         """Refresh the table widget with current DataFrame data"""
         # Disable sorting temporarily while updating
@@ -158,7 +296,7 @@ class MainWindow(QMainWindow):
                 value = self.df.iloc[row, col]
                 
                 if pd.isna(value):
-                    display_value = 'N/A'
+                    display_value = '0'
                 else:
                     display_value = str(value)
                 
@@ -181,53 +319,93 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please select a column first!")
             return
         
-        column_data = self.df[selected_column].tolist()
+        # Get the original column data from dataframe
+        column_data = self.df[selected_column].copy()
         is_numeric = False
         
-        # Validate numeric data
+        # Check if this is a linear-time algorithm that requires integers
+        linear_time_algos = ["Counting Sort", "Radix Sort", "Bucket Sort"]
+        
+        # Try to convert to numeric
         try:
-            # Try converting to numeric
-            numeric_data = pd.to_numeric(self.df[selected_column], errors='coerce')
-            # Check if all values were successfully converted (not NaN)
-            if not numeric_data.isna().all():
-                column_data = numeric_data.tolist()
+            numeric_data = pd.to_numeric(column_data, errors='coerce')
+            
+            # Check if we have any valid numeric values
+            non_nan_count = numeric_data.notna().sum()
+            
+            if non_nan_count > 0:  # At least some values are numeric
                 is_numeric = True
-        except:
-            pass  # Keep this pass here, it's fine
+                
+                # For linear time algorithms, check if data can be converted to integers
+                if algorithm in linear_time_algos:
+                    try:
+                        # Check for negative values in Radix Sort
+                        if algorithm == "Radix Sort" and (numeric_data.dropna() < 0).any():
+                            QMessageBox.warning(self, "Warning", 
+                                "Radix Sort only works with non-negative integers!\n"
+                                "Please select a different algorithm or column.")
+                            return
+                        
+                        # Convert to integers, replacing NaN with 0
+                        column_data = numeric_data.fillna(0).astype(int).tolist()
+                        
+                    except (ValueError, OverflowError):
+                        QMessageBox.warning(self, "Warning", 
+                            f"{algorithm} requires integer data!\n"
+                            f"The selected column contains values that cannot be converted to integers.\n"
+                            "Please select a different algorithm or column.")
+                        return
+                else:
+                    # For other algorithms, use numeric values (can be float)
+                    # Replace NaN with 0
+                    column_data = numeric_data.fillna(0).tolist()
+            else:
+                # No valid numeric values found
+                is_numeric = False
+                
+        except Exception as e:
+            print(f"Error during numeric conversion: {e}")
+            is_numeric = False
         
         # If not numeric, treat as strings
         if not is_numeric:
-            column_data = [str(x) if not pd.isna(x) else "" for x in column_data]
+            if algorithm in linear_time_algos:
+                QMessageBox.warning(self, "Warning", 
+                    f"{algorithm} requires numeric (integer) data!\n"
+                    "Please select a column with numeric values.")
+                return
+            # Convert to strings, replacing NaN with empty string
+            column_data = column_data.fillna("").astype(str).tolist()
         
         # Start timing
         start_time = time.time()
         
-        # Call appropriate algorithm
-        if algorithm == "Insertion Sort":
-            sorted_indices = insertion(column_data)
-        elif algorithm == "Bubble Sort":
-            sorted_indices = bubblesort(column_data)
-            # ← REMOVE the return here!
-        elif algorithm == "Selection Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        elif algorithm == "Merge Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        elif algorithm == "Quick Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        elif algorithm == "Counting Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        elif algorithm == "Radix Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        elif algorithm == "Bucket Sort":
-            QMessageBox.warning(self, "Warning", f"{algorithm} not implemented yet!")
-            return
-        else:
-            QMessageBox.warning(self, "Warning", f"{algorithm} not recognized!")
+        try:
+            # Call appropriate algorithm
+            if algorithm == "Insertion Sort":
+                sorted_indices = insertion(column_data)
+            elif algorithm == "Bubble Sort":
+                sorted_indices = bubblesort(column_data)
+            elif algorithm == "Selection Sort":
+                sorted_indices = selectionsort(column_data)
+            elif algorithm == "Merge Sort":
+                sorted_indices = mergesort(column_data)
+            elif algorithm == "Quick Sort":
+                sorted_indices = quicksort(column_data)
+            elif algorithm == "Counting Sort":
+                sorted_indices = countingsort(column_data)
+            elif algorithm == "Radix Sort":
+                sorted_indices = radixsort(column_data)
+            elif algorithm == "Bucket Sort":
+                sorted_indices = bucketsort(column_data)
+            else:
+                QMessageBox.warning(self, "Warning", f"{algorithm} not recognized!")
+                return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error during {algorithm}:\n{str(e)}")
+            print(f"Sorting error: {e}")
+            import traceback
+            traceback.print_exc()
             return
         
         # End timing
@@ -245,6 +423,7 @@ class MainWindow(QMainWindow):
         
         # Show success message
         QMessageBox.information(self, "Success", f"{algorithm} completed in {total:.6f} seconds!")
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -397,63 +576,152 @@ class Ui_MainWindow(object):
         self.bucketsort.setToolTip(_translate("MainWindow", "Bucket Sort - O(n+k)"))
 
 
-# Sorting Algorithms - Add your implementations here
+# Sorting Algorithms
 def bubblesort(arr):
-    """
-    Bubble Sort - Returns indices in descending order (largest to smallest)
-    """
-    # Create indexed array: [(value, original_index), ...]
+    """Bubble Sort - Returns indices in ascending order"""
     indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
     n = len(indexed_arr)
     
-    # Bubble sort on indexed array
     for i in range(n - 1):
         for j in range(n - i - 1):
-            # Compare by value (first element of tuple)
-            if indexed_arr[j][0] > indexed_arr[j + 1][0]:  # Descending order
-                # Swap
+            if indexed_arr[j][0] > indexed_arr[j + 1][0]:
                 indexed_arr[j], indexed_arr[j + 1] = indexed_arr[j + 1], indexed_arr[j]
     
-    # Return only the indices in sorted order
     return [idx for value, idx in indexed_arr]
 
-def insertion(arr):
-    """
-    Insertion Sort - Returns indices in descending order (largest to smallest)
-    """
-    indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
 
+def merge(indexed_arr, st, mid, end):
+    temp = []
+    i = st 
+    j = mid + 1
+    
+    while i <= mid and j <= end:
+        if indexed_arr[i][0] <= indexed_arr[j][0]:
+            temp.append(indexed_arr[i])
+            i = i + 1
+        else:
+            temp.append(indexed_arr[j])
+            j = j + 1
+    
+    while i <= mid:
+        temp.append(indexed_arr[i])
+        i = i + 1
+                
+    while j <= end:
+        temp.append(indexed_arr[j])
+        j = j + 1
+    
+    for i in range(len(temp)):
+        indexed_arr[i + st] = temp[i]
+
+    
+def mergesort_helper(indexed_arr, st, end):
+    if st < end:
+        mid = st + (end - st) // 2
+        mergesort_helper(indexed_arr, st, mid)
+        mergesort_helper(indexed_arr, mid + 1, end)
+        merge(indexed_arr, st, mid, end)
+
+
+def mergesort(arr):
+    """Merge Sort - Returns indices in ascending order"""
+    indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
+    mergesort_helper(indexed_arr, 0, len(indexed_arr) - 1)
+    return [idx for value, idx in indexed_arr]
+
+
+def insertion(arr):
+    """Insertion Sort - Returns indices in ascending order"""
+    indexed_arr = [(value, idx) for idx, value in enumerate(arr)]
     n = len(indexed_arr)
+    
     for i in range(1, n):
         key = indexed_arr[i]
         j = i - 1
-        while j >= 0 and key[0] > indexed_arr[j][0]:  # Use > for descending
+        while j >= 0 and key[0] < indexed_arr[j][0]:
             indexed_arr[j + 1] = indexed_arr[j]
-            j = j - 1  # ← Must be indented inside the while loop
+            j = j - 1
         indexed_arr[j + 1] = key
     
     return [idx for value, idx in indexed_arr]
 
-# Add your other sorting algorithms here following the same pattern
-# def insertionsort(arr):
-#     # Your implementation
-#     pass
 
-# def selectionsort(arr):
-#     # Your implementation
-#     pass
-
-# ... etc
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
+def selectionsort(arr):
+    """Selection Sort - Returns indices in ascending order"""
+    indexed_array = [(value, idx) for idx, value in enumerate(arr)]
+    n = len(indexed_array)
     
-    # Set application properties
-    app.setApplicationName("Data Structure Project")
-    app.setApplicationVersion("1.0")
-    app.setOrganizationName("CS200")
+    for i in range(n - 1):
+        min_idx = i
+        for j in range(i + 1, n):
+            if indexed_array[j][0] < indexed_array[min_idx][0]:
+                min_idx = j
+        if min_idx != i:
+            indexed_array[min_idx], indexed_array[i] = indexed_array[i], indexed_array[min_idx]
     
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+    return [idx for value, idx in indexed_array]
+
+
+def partition(indexed_array, q, r):
+    """Partition for ascending order"""
+    x = indexed_array[r][0]
+    i = q - 1
+    
+    for j in range(q, r):
+        if indexed_array[j][0] <= x:
+            i = i + 1
+            indexed_array[i], indexed_array[j] = indexed_array[j], indexed_array[i]
+    
+    indexed_array[i + 1], indexed_array[r] = indexed_array[r], indexed_array[i + 1]
+    return i + 1
+
+
+def quicksort_helper(indexed_array, q, r):
+    if q < r:
+        p = partition(indexed_array, q, r)
+        quicksort_helper(indexed_array, q, p - 1)
+        quicksort_helper(indexed_array, p + 1, r)
+
+
+def quicksort(arr):
+    """Quick Sort - Returns indices in ascending order"""
+    indexed_array = [(value, idx) for idx, value in enumerate(arr)]
+    n = len(indexed_array)
+    
+    if n > 0:
+        quicksort_helper(indexed_array, 0, n - 1)
+    
+    return [idx for value, idx in indexed_array]
+
+
+def countingsort(arr):
+    """Counting Sort - Returns indices in ascending order"""
+    if len(arr) == 0:
+        return []
+    
+    try:
+        indexed_array = [(int(value), idx) for idx, value in enumerate(arr)]
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Counting Sort requires integer values: {e}")
+    
+    min_val = min(val for val, _ in indexed_array)
+    max_val = max(val for val, _ in indexed_array)
+    
+    range_size = max_val - min_val + 1
+    count = [0] * range_size
+    output = [None] * len(indexed_array)
+    
+    for value, idx in indexed_array:
+        count[value - min_val] += 1
+    
+    for i in range(1, range_size):
+        count[i] += count[i - 1]
+    
+    for i in range(len(indexed_array) - 1, -1, -1):
+        value, idx = indexed_array[i]
+        output[count[value - min_val] - 1] = (value, idx)
+        count[value - min_val] -= 1
+    
+    return [idx for value, idx in output]
+
+

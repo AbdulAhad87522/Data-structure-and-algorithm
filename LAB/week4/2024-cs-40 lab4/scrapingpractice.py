@@ -23,7 +23,7 @@ suppliers_name =[]
 driver = uc.Chrome()
 try:
     for i in range(1,70):
-        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&has4Tab=true&keywords=laptop&originKeywords=laptop&tab=all&&page={i}&spm=undefined.pagination.0"
+        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=laptop&originKeywords=laptop&tab=all&&page={i}&spm=a2700.galleryofferlist.pagination.0"
         # responce = requests.get(url)
         driver.get(url)
         WebDriverWait(driver, 25).until(
@@ -90,7 +90,7 @@ try:
         })
         
         
-    df.to_csv("laptop.csv", index = "false", encoding="UTF-8")
+    df.to_csv("laptop1-70.csv", index = "false", encoding="UTF-8")
     print(f"Total products scraped are {len(names)}")
 
 finally:
