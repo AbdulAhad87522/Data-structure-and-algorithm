@@ -172,9 +172,129 @@ public:
             cout<<"List is empty"<<endl;
             return;
         }
+        Node* prev = NULL;
+        Node* curr = head;
+        Node* next = NULL;
 
-        tail->next= head;
+        while (curr != NULL)
+        {
+            next = curr->next;
+            curr->next = prev;
+            prev = curr;
+            curr = next;    
+        }
+      
+        head = prev;
     }
+
+    void sortlist()
+    {
+        Node* temp = head;
+        Node* next1 = NULL;
+        if(head == NULL)
+        {
+            cout<<"empty list";
+            return;
+        }
+        while(temp != NULL)
+        {
+            next1 = temp->next;
+            while(next1 != NULL)
+            {
+                if(temp->data > next1->data)
+                {
+                    int tempdata= 0;
+                    tempdata = temp->data;
+                    temp->data = next1->data;
+                    next1->data = tempdata;
+                }
+                next1 = next1->next;
+            }
+            temp = temp->next;
+        }
+    }
+
+    // void removeduplicates()
+    // {
+    //     if(head == NULL)
+    //     {
+    //         cout<<"list is empty";
+    //         return;
+    //     }
+
+    //     Node* curr = head;
+    //     Node* prev = NULL;
+    //     while(curr != NULL )
+    //     {
+    //         if(curr->next != NULL && curr->next == curr->next->data)
+    //         {
+    //             int val = curr->data;
+    //             while(curr != NULL && curr->data = val)
+    //             {
+    //                 curr = curr->next;
+    //             }
+    //             if(prev != NULL)
+    //             {
+    //                 prev->next = curr;
+    //             }
+    //             else{
+    //                 head = curr;
+    //             }
+    //         }
+    //         else{
+    //                 prev= curr;
+    //                 curr = curr->next;
+    //             }
+    //     }
+    // }
+    void removeAllDuplicates()
+{
+    if (head == NULL)
+    {
+        cout << "List is empty" << endl;
+        return;
+    }
+
+    Node* dummy = new Node(0); // temporary node before head
+    dummy->next = head;
+    Node* prev = dummy;
+    Node* curr = head;
+
+    while (curr != NULL)
+    {
+        bool duplicate = false;
+
+        // Check if current value has duplicates
+        while (curr->next != NULL && curr->data == curr->next->data)
+        {
+            duplicate = true;
+            Node* temp = curr->next;
+            curr->next = curr->next->next;
+            delete temp;
+        }
+
+        if (duplicate)
+        {
+            // Remove the first occurrence too
+            Node* temp = curr;
+            curr = curr->next;
+            delete temp;
+            prev->next = curr;
+        }
+        else
+        {
+            // Move normally if no duplicate
+            prev = curr;
+            curr = curr->next;
+        }
+    }
+
+    head = dummy->next;
+    delete dummy;
+
+    cout << "All duplicates removed successfully!" << endl;
+}
+
 };
 
 int main() {
@@ -186,13 +306,16 @@ int main() {
     // ll.pop_front();
     // ll.pop_back();
     // ll.insert(9,3);
-    ll.del(3);
+    // ll.del(3);
     // cout<<ll.search(7);
     cout<<" ";
-
     ll.print();
-
-
+    ll.reverselist();
+    cout<<endl;
+    ll.print();
+    cout<<endl;
+    ll.sortlist();
+    ll.print();
 
     return 0;
 }
