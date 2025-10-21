@@ -21,11 +21,11 @@ suppliers_location =[]
 suppliers_name =[]
 driver = uc.Chrome()
 try:
-    for i in range(1,20):
-        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=shoes&originKeywords=shoes&tab=all&&page={i}&spm=undefined.pagination.0"
+    for i in range(20,40):
+        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=tshirt&originKeywords=tshirt&tab=all&page={i}"
         # responce = requests.get(url)
         driver.get(url)
-        WebDriverWait(driver, 25).until(
+        WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CLASS_NAME, "fy26-product-card-content"))
         )
         # time.sleep(4)
@@ -88,7 +88,7 @@ try:
         # "Years" : olds
         })
         
-    df.to_csv("shoes1-20.csv", index = False, encoding="UTF-8")
+    df.to_csv("machinery40-60.csv", index = False, encoding="UTF-8")
     # if os.path.exists("s-20.csv"):
     #     print(f"CSV file created successfully! Total products scraped: {len(names)}")
     #     print(f"File location: {os.path.abspath('s-20.csv')}")
