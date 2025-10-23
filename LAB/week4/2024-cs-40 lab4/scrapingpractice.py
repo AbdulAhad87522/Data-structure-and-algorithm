@@ -22,7 +22,7 @@ suppliers_name =[]
 driver = uc.Chrome()
 try:
     for i in range(20,40):
-        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pcHomeContent&has4Tab=true&keywords=tshirt&originKeywords=tshirt&tab=all&page={i}"
+        url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pc&SearchText=watch&page={i}"
         # responce = requests.get(url)
         driver.get(url)
         WebDriverWait(driver, 5).until(
@@ -100,3 +100,97 @@ try:
 finally:
      driver.quit
 
+
+# import undetected_chromedriver as uc
+# from bs4 import BeautifulSoup as bs
+# import pandas as pd
+# from selenium.webdriver.support.ui import WebDriverWait
+# import time
+# from selenium.webdriver.support import expected_conditions as EC
+# from selenium.webdriver.common.by import By
+# import csv
+# import os
+
+# # === Setup Chrome ===
+# driver = uc.Chrome()
+
+# # === Output CSV filename ===
+# filename = "watch1-20_live.csv"
+
+# # === Create CSV file and write header (only once) ===
+# with open(filename, mode='w', newline='', encoding='utf-8') as file:
+#     writer = csv.writer(file)
+#     writer.writerow([
+#         "Name",
+#         "Price",
+#         "Minimum Orders",
+#         "Total Sold",
+#         "Supplier Name",
+#         "Supplier Experience",
+#         "Supplier Type",
+#         "Supplier Location"
+#     ])
+
+# # === Start scraping ===
+# try:
+#     for i in range(1, 20):
+#         url = f"https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&from=pc&SearchText=watch&page={i}"
+#         driver.get(url)
+        
+#         WebDriverWait(driver, 15).until(
+#             EC.presence_of_element_located((By.CLASS_NAME, "fy26-product-card-content"))
+#         )
+        
+#         soup = bs(driver.page_source, 'html.parser')
+#         products = soup.find_all('div', class_="fy26-product-card-content")
+        
+#         for product in products:
+#             try:
+#                 name = product.find('h2', class_='searchx-product-e-title')
+#                 final_name = name.text.strip() if name else 'N/A'
+
+#                 price = product.find('div', class_="searchx-product-price-price-main")
+#                 final_price = price.text.strip() if price else 'N/A'
+
+#                 minimum = product.find('div', class_="searchx-moq")
+#                 final_minimum = minimum.text.strip() if minimum else 'N/A'
+
+#                 sold = product.find('div', class_='searchx-sold-order')
+#                 total = sold.text.strip() if sold else 'N/A'
+
+#                 supplier_div = product.find('div', class_='searchx-product-area supplier-area-layout')
+#                 if supplier_div:
+#                     supplier_spans = supplier_div.find_all('span')
+#                     supplier_name = supplier_spans[0].text.strip() if len(supplier_spans) > 0 else 'N/A'
+#                     supplier_type = supplier_spans[1].text.strip() if len(supplier_spans) > 1 else 'N/A'
+#                     supplier_location = supplier_spans[2].text.strip() if len(supplier_spans) > 2 else 'N/A'
+#                     supplier_full = supplier_div.text.strip()
+#                 else:
+#                     supplier_name = supplier_type = supplier_location = supplier_full = 'N/A'
+
+#                 # === Write directly to CSV ===
+#                 with open(filename, mode='a', newline='', encoding='utf-8') as file:
+#                     writer = csv.writer(file)
+#                     writer.writerow([
+#                         final_name,
+#                         final_price,
+#                         final_minimum,
+#                         total,
+#                         supplier_full,
+#                         supplier_name,
+#                         supplier_type,
+#                         supplier_location
+#                     ])
+
+#                 print(f"[Page {i}] Saved: {final_name[:40]}...")
+
+#             except Exception as e:
+#                 print(f"Error scraping product: {e}")
+#                 continue
+
+#         print(f"✅ Page {i} completed.")
+#         time.sleep(2)  # slight delay between pages
+
+# finally:
+#     driver.quit()
+#     print(f"\nScraping finished! CSV file: {os.path.abspath(filename)}")
