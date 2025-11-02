@@ -213,40 +213,7 @@ public:
             temp = temp->next;
         }
     }
-
-    // void removeduplicates()
-    // {
-    //     if(head == NULL)
-    //     {
-    //         cout<<"list is empty";
-    //         return;
-    //     }
-
-    //     Node* curr = head;
-    //     Node* prev = NULL;
-    //     while(curr != NULL )
-    //     {
-    //         if(curr->next != NULL && curr->next == curr->next->data)
-    //         {
-    //             int val = curr->data;
-    //             while(curr != NULL && curr->data = val)
-    //             {
-    //                 curr = curr->next;
-    //             }
-    //             if(prev != NULL)
-    //             {
-    //                 prev->next = curr;
-    //             }
-    //             else{
-    //                 head = curr;
-    //             }
-    //         }
-    //         else{
-    //                 prev= curr;
-    //                 curr = curr->next;
-    //             }
-    //     }
-    // }
+    
     void removeAllDuplicates()
 {
     if (head == NULL)
