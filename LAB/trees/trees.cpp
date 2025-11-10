@@ -72,7 +72,7 @@ class Node{
         }
     }
 
-       Node* getIS(Node* root)
+       Node* getInorderSuccessor(Node* root)
     {
         while (root !=NULL && root->left != NULL)
         {
@@ -100,7 +100,7 @@ class Node{
 
         else
         {
-            if(root->left == NULL && root->right) //  mere logic
+            if(root->left == NULL && root->right == NULL) //  mere logic
             // if(root->left == NULL )
 
             {
@@ -120,7 +120,7 @@ class Node{
                 return temp;
             }
             else{
-                Node* IS = getIS(root->right);
+                Node* IS = getInorderSuccessor(root->right);
                 root->data = IS->data;
                 root->right = delNOde(root->right, IS->data);
             }
