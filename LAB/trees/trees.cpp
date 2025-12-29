@@ -128,6 +128,10 @@ class Node{
         // return root;
     }
 
+    bool isempty()
+    {
+        
+    }
  
 
 int main()
